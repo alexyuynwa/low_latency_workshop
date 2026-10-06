@@ -1,0 +1,113 @@
+-   How to run the experiment
+
+    0. This program runs on a virtual network device, so no dedicated hardware is required.
+
+    1.  Build:
+
+        cmake -S . -B build
+        cmake --build build --parallel 2
+
+    2.  Start the TAP interface:
+
+        sudo ./build/dpdk_cpp_demo \
+        -l 0-2 \
+        --no-huge \
+        --no-pci \
+        --vdev=net_tap0,iface=dpdk_tap0
+
+        -   What does this program do?
+        
+            The program sends one test frame per second and prints statistics:
+
+            TX packets: 1, RX packets: 0
+            TX packets: 2, RX packets: 0
+            TX packets: 3, RX packets: 0
+            TX packets: 4, RX packets: 0
+            ...
+
+        -   Parameter parsing:
+
+            Parameters starting with -l are configuration options passed to DPDK's internal environment abstraction layer (EAL):
+            
+            -   -l 0-2: specifies the CPU cores (Cores) the program binds to. This means the program will exclusively use cores 0, 1, and 2 
+                for a total of 3 CPU cores to handle the workload (typically core 0 as the control plane and cores 1 and 2 for high-performance packet I/O).
+                
+            -   --no-huge: disable huge pages (Hugepages).
+            
+                -   In normal scenarios: DPDK requires 2MB or 1GB huge pages for maximum performance.
+                -   In this scenario: adding this option means it uses the system's normal 4KB pages directly. This is commonly used for local development
+                    and debugging because you do not need to preconfigure complex system huge pages.
+                    
+            -   --no-pci: disable PCI device scanning. Tell DPDK not to take over the host physical NICs (such as Intel
+                Mellanox physical NICs).
+                    
+            -   --vdev=net_tap0,iface=dpdk_tap0: create a virtual network device (Virtual Device).
+                    
+                -   Since the physical NIC was disabled earlier (--no-pci), the program needs a virtual NIC to send and receive data.
+                
+                -   This uses the net_tap driver to create a virtual TAP NIC named dpdk_tap0 in Linux.
+                
+                -   This lets you send traffic to this dpdk_tap0 interface using normal Linux tools such as ping or tcpdump
+                    while your DPDK program receives and processes it at the lower level.
+
+                -   Why are two devices needed?
+
+                    Because these two names serve two very different worlds: the internal world of DPDK and the external world of the Linux 
+                    operating system. They need to be mapped to each other. Without these names, the two sides cannot communicate normally, for the following reasons:
+
+
+                    1.  Why is net_tap0 needed? (so DPDK can recognize it internally)
+
+                        DPDK is an independent, high-performance data-plane engine. When you call DPDK APIs in code to send
+                        and receive packets, DPDK must know:
+
+                        -   What underlying technology/driver implements this NIC? (physical NIC, memory ring, or virtual NIC?)
+                        -   Which port number (Port ID) or name is used in the code to refer to it?
+
+                        net_tap0 is the name that DPDK listens to internally. It tells DPDK: “Please start a net_tap virtual driver instance internally
+                        as instance 0 and assign it an internal port number (for example, Port 0).”
+
+                    2.  Why is iface=dpdk_tap0 needed? (so the Linux OS can recognize it)
+
+                        Although DPDK takes over packet processing, it cannot magically pull packets out of the operating system protocol stack by itself. It
+                        needs to request a visible physical/virtual interface from the Linux kernel. iface=dpdk_tap0 tells the kernel:
+                        “Create a network interface named dpdk_tap0 in the OS so that other normal Linux
+                         programs (such as ping, curl, or wireshark) have a target to send packets to.”
+
+                    How do they work together? (bridge relationship)
+
+                    +-------------------------------------------------------------------------+
+                    |                   Linux operating system (external world)                  |
+                    |                                                                         |
+                    |   Other programs (e.g., ping) --> send packets to NIC: [ dpdk_tap0 ]       |
+                    +------------------------------------------------------------|------------+
+                                                                                 | (kernel bridging)
+                                                                                 v
+                    +------------------------------------------------------------|------------+
+                    |                    DPDK application (internal world)                     |
+                    |                                                                         |
+                    |   [ net_tap0 ] driver instance receives data --> pass to your code: dpdk_cpp_demo |
+                    +-------------------------------------------------------------------------+
+
+                1. A normal program sends the packet to dpdk_tap0 in the Linux kernel.
+                2. The Linux kernel pushes the data through the TAP driver mechanism to the bound DPDK virtual device.
+                3. The net_tap0 driver instance inside DPDK receives this data and converts it into the DPDK-specific memory structure
+                    (rte_mbuf).
+                4. Your dpdk_cpp_demo program finally obtains the packet in code via this channel.
+
+    3. Open another terminal to configure the Linux TAP interface:
+    
+
+        -   Bring up the network interface
+            
+            sudo ip link set dpdk_tap0 up
+        
+        -   Configure the IP address
+        
+            sudo ip addr add 192.168.77.1/24 dev dpdk_tap0
+
+        Send traffic to a non-existent address so the program receives 3 ARP packets:
+
+        ping -I dpdk_tap0 -c 3 192.168.77.2
+
+        RX 42 bytes: ff ff ff ff ff ff ...

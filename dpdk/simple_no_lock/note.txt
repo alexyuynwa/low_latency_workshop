@@ -1,0 +1,15 @@
+# 1. Configure and generate build files (output to the build directory)
+cmake -S . -B build
+
+# 2. Start 2 worker threads to build in parallel
+cmake --build build --parallel 2
+
+# 3. Run
+sudo ./build/dpdk_cpp_demo   -l 0-1   --no-huge   --no-pci   --vdev=net_tap0,iface=dpdk_tap0
+
+# 4. Bring up the NIC and configure the IP address
+sudo ip link set dpdk_tap0 up
+sudo ip addr add 192.168.77.1/24 dev dpdk_tap0
+
+# 5. Send an ICMP packet
+ping -I dpdk_tap0 -c 3 192.168.77.2
