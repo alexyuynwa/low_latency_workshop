@@ -35,6 +35,7 @@ The goal of this project is to help understand how to design faster software, be
 │
 ├── dpdk/                  # DPDK-related experiments and demos
 │   ├── ITCH/
+│   ├── FIX/
 │   ├── simple_no_lock/
 │   ├── simple_tap_test/
 │   ├── test/
@@ -104,6 +105,7 @@ Current examples include:
 - `simple_no_lock/`: experiments related to lock-free or low-contention processing
 - `simple_tap_test/`: basic tap testing examples
 - `ITCH/`: handling of ITCH data feeds
+- `FIX/`: FIX 4.4 message parsing from DPDK Ethernet/IPv4/TCP packets
 - `test/`: general DPDK testing examples
 
 ### Dependencies
