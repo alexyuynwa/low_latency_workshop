@@ -7,6 +7,7 @@
 #include "./v3/dictionary.hh"
 #include "./v4/dictionary.hh"
 #include "./v5/dictionary.hh"
+#include "./v6/dictionary.hh"
 
 #include <benchmark/benchmark.h>
 
@@ -147,6 +148,9 @@ BENCHMARK_TEMPLATE(NotInDictionary, v4::Dictionary);
 
 BENCHMARK_TEMPLATE(InDictionary, v5::Dictionary);
 BENCHMARK_TEMPLATE(NotInDictionary, v5::Dictionary);
+
+BENCHMARK_TEMPLATE(InDictionary, v6::Dictionary);
+BENCHMARK_TEMPLATE(NotInDictionary, v6::Dictionary);
 
 
 int main(int argc, char** argv)

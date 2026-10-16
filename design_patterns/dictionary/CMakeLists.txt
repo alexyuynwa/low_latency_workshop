@@ -10,6 +10,7 @@ add_executable(dictionary
     ./v3/dictionary.hh
     ./v4/dictionary.hh
     ./v5/dictionary.hh
+    ./v6/dictionary.hh
     ./string_view.hh
 )
 
